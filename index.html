@@ -54,7 +54,7 @@
     .chart-wrap {
       position: relative;
       width: 100%;
-      height: 780px;
+      height: 860px;
     }
   </style>
 </head>
@@ -69,7 +69,6 @@
   <script>
     const START_JAAR = 2014;
     const EINDE_JAAR = 2030;
-    // Decimale weergave van "Nu" (bijv. eind november 2026 ≈ 2026.9)
     const NU_JAAR = 2026.9;
 
     const THEMA_KLEUREN = {
@@ -84,6 +83,22 @@
       "GOB": "#0f766e",
       "Programma Natuur": "#1d4ed8",
       "ALG GGA": "#b45309"
+    };
+
+    const PRODUCTIECIJFERS = {
+      2014: { realisatie: 46.4991, beschikkingen: 25 },
+      2015: { realisatie: 32.1167, beschikkingen: 25 },
+      2016: { realisatie: 408.8707, beschikkingen: 25 },
+      2017: { realisatie: 1226.2009, beschikkingen: 25 },
+      2018: { realisatie: 997.9574, beschikkingen: 25 },
+      2019: { realisatie: 547.8154, beschikkingen: 25 },
+      2020: { realisatie: 612.9943, beschikkingen: 25 },
+      2021: { realisatie: 813.9391, beschikkingen: 25 },
+      2022: { realisatie: 652.9792, beschikkingen: 25 },
+      2023: { realisatie: 453.926, beschikkingen: 25 },
+      2024: { realisatie: 669.1808, beschikkingen: 25 },
+      2025: { realisatie: 769.8144, beschikkingen: 25 },
+      2026: { realisatie: 250.3951, beschikkingen: 25 }
     };
 
     const ITEMS = [
@@ -122,6 +137,42 @@
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
+    // Automatisch kleurverloop: laagste (0) = rood (#dc2626), midden (0.5) = geel/amber (#facc15), hoogste (1) = groen (#16a34a)
+    function waardeNaarKleur(waarde, minVal, maxVal, alpha = 0.85) {
+      if (waarde === null || waarde === undefined || Number.isNaN(waarde)) {
+        return `rgba(241, 245, 249, ${alpha})`;
+      }
+      if (maxVal <= minVal) {
+        return `rgba(22, 163, 74, ${alpha})`;
+      }
+      const t = Math.max(0, Math.min(1, (waarde - minVal) / (maxVal - minVal)));
+
+      // Twee segmenten: 0 -> 0.5 (rood naar geel), 0.5 -> 1 (geel naar groen)
+      let r, g, b;
+      if (t < 0.5) {
+        const localT = t / 0.5;
+        // #dc2626 (220, 38, 38) -> #facc15 (250, 204, 21)
+        r = Math.round(220 + (250 - 220) * localT);
+        g = Math.round(38 + (204 - 38) * localT);
+        b = Math.round(38 + (21 - 38) * localT);
+      } else {
+        const localT = (t - 0.5) / 0.5;
+        // #facc15 (250, 204, 21) -> #16a34a (22, 163, 74)
+        r = Math.round(250 + (22 - 250) * localT);
+        g = Math.round(204 + (163 - 204) * localT);
+        b = Math.round(21 + (74 - 21) * localT);
+      }
+
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    const realisatieWaarden = Object.values(PRODUCTIECIJFERS).map(d => d.realisatie);
+    const beschikkingWaarden = Object.values(PRODUCTIECIJFERS).map(d => d.beschikkingen);
+    const minRealisatie = Math.min(...realisatieWaarden);
+    const maxRealisatie = Math.max(...realisatieWaarden);
+    const minBeschikking = Math.min(...beschikkingWaarden);
+    const maxBeschikking = Math.max(...beschikkingWaarden);
+
     // Legenda opbouwen
     const legendaEl = document.getElementById("legenda");
     Object.entries(THEMA_KLEUREN).forEach(([thema, kleur]) => {
@@ -136,7 +187,6 @@
     nuItem.innerHTML = `<span class="nu-lijn-icoon"></span><span>Nu (stippellijn = prognose/toekomst)</span>`;
     legendaEl.appendChild(nuItem);
 
-    // Hulpfunctie voor afgeronde rechthoek
     function drawRoundRect(ctx, x, y, w, h, radii) {
       const r = typeof radii === "number"
         ? { tl: radii, tr: radii, br: radii, bl: radii }
@@ -162,16 +212,14 @@
       ctx.closePath();
     }
 
-    // Plugin voor groepskaders, aangepaste balken (voor/na "Nu" + stippellijn), tekst in balken en "Nu"-lijn
     const tijdlijnPlugin = {
       id: "tijdlijnPlugin",
       beforeDatasetsDraw(chart) {
         const { ctx, chartArea, scales } = chart;
         if (!chartArea) return;
-        const xScale = scales.x;
         const yScale = scales.y;
 
-        // 1. Groepskaders tekenen op basis van opeenvolgende items met dezelfde groep
+        // Groepskaders tekenen
         const groepenBlokken = [];
         ITEMS.forEach((item, idx) => {
           const prev = groepenBlokken[groepenBlokken.length - 1];
@@ -188,8 +236,8 @@
 
         ctx.save();
         groepenBlokken.forEach((blok) => {
-          const yTop = yScale.getPixelForValue(blok.startIndex) - 15;
-          const yBottom = yScale.getPixelForValue(blok.endIndex) + 15;
+          const yTop = yScale.getPixelForValue(blok.startIndex) - 14;
+          const yBottom = yScale.getPixelForValue(blok.endIndex) + 14;
           const xLeft = chartArea.left + 4;
           const xRight = chartArea.right - 4;
           const kaderKleur = GROEP_KLEUREN[blok.groep] || "#64748b";
@@ -203,7 +251,6 @@
           ctx.fill();
           ctx.stroke();
 
-          // Groepslabel rechtsboven in het kader
           ctx.setLineDash([]);
           ctx.font = "600 11px system-ui, -apple-system, sans-serif";
           ctx.fillStyle = kaderKleur;
@@ -218,17 +265,15 @@
         const { ctx, chartArea, scales } = chart;
         if (!chartArea) return;
         const xScale = scales.x;
-        const yScale = scales.y;
         const meta = chart.getDatasetMeta(0);
 
-        // Eerst standaardbalken verbergen omdat we ze zelf met "Nu"-splitsing en stippellijn tekenen
         ctx.save();
         ITEMS.forEach((item, idx) => {
           const barEl = meta.data[idx];
           if (!barEl) return;
 
           const yCenter = barEl.y;
-          const barHeight = Math.min(barEl.height || 20, 22);
+          const barHeight = Math.min(barEl.height || 20, 21);
           const yTop = yCenter - barHeight / 2;
 
           const startVal = Math.max(START_JAAR, Number(item.start));
@@ -241,14 +286,13 @@
           const basisKleur = THEMA_KLEUREN[item.thema] || "#64748b";
           const xStart = xScale.getPixelForValue(startVal);
           const xEnd = xScale.getPixelForValue(eindVal);
-          const xNu = xScale.getPixelForValue(Math.min(Math.max(NU_JAAR, START_JAAR), EINDE_JAAR));
 
-          // Deel 1: vóór "Nu" (doorgetrokken)
+          // Deel 1: vóór "Nu"
           if (startVal < NU_JAAR) {
             const preEndVal = Math.min(eindVal, NU_JAAR);
             const xPreEnd = xScale.getPixelForValue(preEndVal);
             const wPre = Math.max(2, xPreEnd - xStart);
-            const eindigtVoor2030 = hasExplicitEnd && rawEndVal < EINDE_JAAR && eindVal <= preEndVal;
+            const eindigtVoorEinde = hasExplicitEnd && rawEndVal < EINDE_JAAR && eindVal <= preEndVal;
 
             ctx.fillStyle = basisKleur;
             ctx.strokeStyle = basisKleur;
@@ -258,27 +302,25 @@
             drawRoundRect(ctx, xStart, yTop, wPre, barHeight, {
               tl: 4,
               bl: 4,
-              tr: eindigtVoor2030 ? 4 : 0,
-              br: eindigtVoor2030 ? 4 : 0
+              tr: eindigtVoorEinde ? 4 : 0,
+              br: eindigtVoorEinde ? 4 : 0
             });
             ctx.fill();
-            if (eindigtVoor2030) {
+            if (eindigtVoorEinde) {
               ctx.stroke();
             }
           }
 
-          // Deel 2: vanaf "Nu" (stippellijn + 50% themavulling)
+          // Deel 2: vanaf "Nu" (stippellijn + 50% vulling)
           if (eindVal > NU_JAAR) {
             const postStartVal = Math.max(startVal, NU_JAAR);
             const xPostStart = xScale.getPixelForValue(postStartVal);
             const wPost = Math.max(2, xEnd - xPostStart);
 
-            // Eindstreep en ronde rechterhoek alleen wanneer einddatum < 2030 (en expliciet opgegeven)
             const heeftEindStreep = hasExplicitEnd && rawEndVal < EINDE_JAAR;
             const radiusRechts = heeftEindStreep ? 4 : 0;
             const radiusLinks = startVal >= NU_JAAR ? 4 : 0;
 
-            // 50% vulling
             ctx.fillStyle = hexToRgba(basisKleur, 0.5);
             drawRoundRect(ctx, xPostStart, yTop, wPost, barHeight, {
               tl: radiusLinks,
@@ -288,7 +330,6 @@
             });
             ctx.fill();
 
-            // Stippellijn rondom het traject vanaf Nu
             ctx.strokeStyle = basisKleur;
             ctx.lineWidth = 1.6;
             ctx.setLineDash([4, 3]);
@@ -303,17 +344,12 @@
               });
               ctx.stroke();
             } else {
-              // Boven- en onderlijn zonder rechter eindstreep
               ctx.moveTo(xPostStart + radiusLinks, yTop);
               ctx.lineTo(xPostStart + wPost, yTop);
               ctx.moveTo(xPostStart + radiusLinks, yTop + barHeight);
               ctx.lineTo(xPostStart + wPost, yTop + barHeight);
-              if (radiusLinks > 0) {
-                ctx.moveTo(xPostStart + wPost, yTop); // placeholder
-              }
               ctx.stroke();
 
-              // Linker rand tekenen als het item pas na "Nu" start
               if (startVal >= NU_JAAR) {
                 ctx.beginPath();
                 ctx.moveTo(xPostStart, yTop + radiusLinks);
@@ -324,7 +360,7 @@
             ctx.setLineDash([]);
           }
 
-          // Tekst in het balkje plaatsen
+          // Tekst in het balkje
           const totaleBreedte = Math.max(0, xEnd - xStart);
           ctx.font = "600 11px system-ui, -apple-system, sans-serif";
           ctx.textBaseline = "middle";
@@ -335,14 +371,13 @@
             ctx.textAlign = "left";
             ctx.fillText(item.naam, xStart + 7, yCenter + 0.5);
           } else {
-            // Fallback net rechts naast een smal balkje zodat de naam leesbaar blijft
             ctx.fillStyle = basisKleur;
             ctx.textAlign = "left";
             ctx.fillText(item.naam, xEnd + 6, yCenter + 0.5);
           }
         });
 
-        // Verticale "Nu"-lijn over de grafiek tekenen
+        // Verticale "Nu"-lijn
         if (NU_JAAR >= START_JAAR && NU_JAAR <= EINDE_JAAR) {
           const xNu = xScale.getPixelForValue(NU_JAAR);
           ctx.strokeStyle = "#dc2626";
@@ -361,6 +396,54 @@
           ctx.fillText("Nu", xNu, chartArea.top - 12);
         }
 
+        // Productiecijfers onder de jaartallen tekenen
+        const row1Top = chartArea.bottom + 26;
+        const rowHeight = 22;
+        const row2Top = row1Top + rowHeight + 4;
+
+        ctx.font = "600 11px system-ui, -apple-system, sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#334155";
+        ctx.fillText("Realisatie per jaar", chartArea.left, row1Top + rowHeight / 2);
+        ctx.fillText("Beschikkingen per jaar", chartArea.left, row2Top + rowHeight / 2);
+
+        for (let jaar = START_JAAR; jaar <= EINDE_JAAR; jaar++) {
+          const xLeft = xScale.getPixelForValue(jaar - 0.45);
+          const xRight = xScale.getPixelForValue(jaar + 0.45);
+          const celBreedte = Math.max(12, xRight - xLeft);
+          const xCenter = xScale.getPixelForValue(jaar);
+          const dataJaar = PRODUCTIECIJFERS[jaar];
+
+          // Rij 1: Realisatie per jaar
+          const realVal = dataJaar ? dataJaar.realisatie : null;
+          ctx.fillStyle = waardeNaarKleur(realVal, minRealisatie, maxRealisatie, 0.85);
+          drawRoundRect(ctx, xLeft, row1Top, celBreedte, rowHeight, 3);
+          ctx.fill();
+
+          if (realVal !== null) {
+            ctx.fillStyle = "#0f172a";
+            ctx.font = "600 9.5px system-ui, -apple-system, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(realVal.toFixed(1).replace(".", ","), xCenter, row1Top + rowHeight / 2 + 0.5);
+          }
+
+          // Rij 2: Beschikkingen per jaar
+          const beschVal = dataJaar ? dataJaar.beschikkingen : null;
+          ctx.fillStyle = waardeNaarKleur(beschVal, minBeschikking, maxBeschikking, 0.85);
+          drawRoundRect(ctx, xLeft, row2Top, celBreedte, rowHeight, 3);
+          ctx.fill();
+
+          if (beschVal !== null) {
+            ctx.fillStyle = "#0f172a";
+            ctx.font = "600 9.5px system-ui, -apple-system, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(String(beschVal), xCenter, row2Top + rowHeight / 2 + 0.5);
+          }
+        }
+
         ctx.restore();
       }
     };
@@ -373,7 +456,6 @@
         datasets: [{
           label: "Periode",
           data: ITEMS.map(i => [i.start, i.eind ?? EINDE_JAAR]),
-          // Transparant omdat tijdlijnPlugin de gestylede balken tekent
           backgroundColor: "rgba(0,0,0,0)",
           borderWidth: 0
         }]
@@ -386,7 +468,8 @@
         layout: {
           padding: {
             top: 22,
-            right: 16
+            right: 16,
+            bottom: 84
           }
         },
         scales: {
@@ -402,7 +485,6 @@
             }
           },
           y: {
-            // Namen staan in de balkjes in plaats van links langs de y-as
             ticks: {
               display: false
             },
