@@ -1,1 +1,777 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Schematische Tijdlijn — Beleid &amp; Maatregelen</title>
 
+  <!-- Google Font: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Chart.js voor de horizontale tijdlijn -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-5">
+
+    <!-- Titel en Legenda -->
+    <header class="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+          Tijdlijn Regelingen &amp; Maatregelen
+        </h1>
+      </div>
+
+      <!-- Legenda -->
+      <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm text-slate-600">
+        <div class="flex flex-wrap items-center gap-4">
+          <span class="font-semibold text-slate-700">Thema's:</span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-sm bg-[#16a34a] inline-block"></span>
+            <span>Natuur</span>
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-sm bg-[#0284c7] inline-block"></span>
+            <span>Water</span>
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-sm bg-[#92400e] inline-block"></span>
+            <span>Landbouw</span>
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-sm bg-[#7e22ce] inline-block"></span>
+            <span>buiten NNB</span>
+          </span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4">
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-4 border-t-2 border-dashed border-rose-600 inline-block"></span>
+            <span>Peilmoment Nu (2026.9)</span>
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-4 border-t-2 border-dotted border-slate-700 inline-block"></span>
+            <span>Vanaf Nu (stippellijn, 50% vulling)</span>
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="w-4 h-3 border-t-2 border-b-2 border-dashed border-slate-500 inline-block"></span>
+            <span>Groepssamenhang</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tijdlijn Visualisatie -->
+    <main class="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 shadow-sm">
+      <div class="w-full overflow-x-auto border border-slate-200/80 rounded-xl bg-slate-50/40">
+        <div id="chartWrapper" class="min-w-[820px] relative p-2 sm:p-3">
+          <canvas id="timelineCanvas"></canvas>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    /**
+     * Constanten voor de tijdas en het peilmoment "Nu".
+     */
+    const TIJDLAS_START_JAAR = 2014;
+    const TIJDLAS_EINDE_JAAR = 2030;
+    const NU_JAAR = 2026.9;
+
+    /**
+     * Kleurenpalet per beleidsthema.
+     */
+    const THEME_COLORS = {
+      'Natuur': {
+        fill: '#16a34a',
+        fill50: 'rgba(22, 163, 74, 0.5)',
+        border: '#14532d',
+        text: '#ffffff',
+      },
+      'Water': {
+        fill: '#0284c7',
+        fill50: 'rgba(2, 132, 199, 0.5)',
+        border: '#0c4a6e',
+        text: '#ffffff',
+      },
+      'Landbouw': {
+        fill: '#92400e',
+        fill50: 'rgba(146, 64, 14, 0.5)',
+        border: '#451a03',
+        text: '#ffffff',
+      },
+      'buiten NNB': {
+        fill: '#7e22ce',
+        fill50: 'rgba(126, 34, 206, 0.5)',
+        border: '#3b0764',
+        text: '#ffffff',
+      },
+    };
+
+    /**
+     * Vaste tijdlijngegevens.
+     */
+    const ITEMS = [
+      {
+        id: 1,
+        naam: 'PAS',
+        groep: 'Pnb / Algemeen',
+        spoor: 'PAS-lijn',
+        thema: 'Natuur',
+        start: 2015,
+        eind: 2026,
+        toelichting: 'Programmatische Aanpak Stikstof (PAS)',
+      },
+      {
+        id: 2,
+        naam: 'Verkoop natuurgrond',
+        groep: 'GOB',
+        spoor: 'Grond-1',
+        thema: 'Natuur',
+        start: 2016,
+        eind: 2030,
+        toelichting: 'Verkoop Categorie 1, 2 en 3',
+      },
+      {
+        id: 3,
+        naam: 'Aankoop ruilgronden en gebouwen',
+        groep: 'GOB',
+        spoor: 'Grond-2',
+        thema: 'Natuur',
+        start: 2019,
+        eind: 2026,
+        toelichting: 'Rode/donkere balk in de schets (aankoop gronden/gebieden).',
+      },
+      {
+        id: 4,
+        naam: 'Herplantplicht',
+        groep: 'GOB',
+        spoor: 'Grond-2',
+        thema: 'buiten NNB',
+        start: 2027,
+        eind: 2028,
+        toelichting: 'Paarse balk in het verlengde richting toekomst.',
+      },
+      {
+        id: 5,
+        naam: 'EVZ',
+        groep: 'GOB',
+        spoor: 'GOB-1',
+        thema: 'Water',
+        start: 2014,
+        eind: 2030,
+        toelichting: 'Ecologische verbindingszone / waterlijn onder GOB.',
+      },
+      {
+        id: 6,
+        naam: 'Rnnb',
+        groep: 'GOB',
+        spoor: 'GOB-2',
+        thema: 'Natuur',
+        start: 2014,
+        eind: 2030,
+        toelichting: 'Groene lijn onder GOB.',
+      },
+      {
+        id: 7,
+        naam: 'Afloop pacht',
+        groep: 'GOB',
+        spoor: 'GOB-6',
+        thema: 'Natuur',
+        start: 2023,
+        eind: 2028,
+        toelichting: 'Start na 2023 en loopt richting toekomst.',
+      },
+      {
+        id: 8,
+        naam: 'Pnnb',
+        groep: 'GOB',
+        spoor: 'GOB-3',
+        thema: 'Natuur',
+        start: 2014,
+        eind: 2022,
+        toelichting: 'Loopt tot circa 2022.',
+      },
+      {
+        id: 9,
+        naam: 'Onnb',
+        groep: 'GOB',
+        spoor: 'GOB-4',
+        thema: 'Landbouw',
+        start: 2014,
+        eind: 2022,
+        toelichting: 'Bruine lijn binnen GOB-blok.',
+      },
+      {
+        id: 10,
+        naam: 'Herbegrenzen (GOB)',
+        groep: 'GOB',
+        spoor: 'GOB-5',
+        thema: 'Landbouw',
+        start: 2014,
+        eind: 2020,
+        toelichting: 'Eindigt rond 2020/2021.',
+      },
+      {
+        id: 11,
+        naam: 'Nieuwe realistische strategie natuur',
+        groep: 'Programma Natuur',
+        spoor: 'GOB-7',
+        thema: 'Natuur',
+        start: 2027,
+        eind: 2030,
+        toelichting: 'Geplaatst in het toekomstige deel van de schets.',
+      },
+      {
+        id: 12,
+        naam: 'MOKS',
+        groep: 'Programma Natuur',
+        spoor: 'MOKS-lijn',
+        thema: 'Water',
+        start: 2022,
+        eind: 2027,
+        toelichting: 'Blauwe balk op de tijdlijn.',
+      },
+      {
+        id: 13,
+        naam: 'MOHS + Realisatie ovk',
+        groep: 'Programma Natuur',
+        spoor: 'MOKS-lijn',
+        thema: 'Water',
+        start: 2027,
+        eind: 2030,
+        toelichting: 'Vervolgblok in het verlengde rechts van MOHS.',
+      },
+      {
+        id: 14,
+        naam: 'LPN1',
+        groep: 'Programma Natuur',
+        spoor: 'LPN-lijn',
+        thema: 'Natuur',
+        start: 2021,
+        eind: 2026,
+        toelichting: 'Eerste LPN-periode.',
+      },
+      {
+        id: 15,
+        naam: 'LPN2',
+        groep: 'Programma Natuur',
+        spoor: 'LPN-lijn',
+        thema: 'Natuur',
+        start: 2024,
+        eind: 2030,
+        toelichting: 'Tweede LPN-periode in het verlengde van LPN1.',
+      },
+      {
+        id: 16,
+        naam: 'GGA',
+        groep: 'ALG GGA',
+        spoor: 'GGA-lijn',
+        thema: 'Natuur',
+        start: 2021,
+        eind: 2025,
+        toelichting: 'Groene onderbalk bij LPN1.',
+      },
+      {
+        id: 17,
+        naam: 'ALG / ALG 2.0',
+        groep: 'ALG GGA',
+        spoor: 'BPLG-lijn',
+        thema: 'Landbouw',
+        start: 2025,
+        eind: 2028.5,
+        toelichting: 'Vervolgblok in het verlengde in bruin.',
+      },
+      {
+        id: 18,
+        naam: 'BPLG',
+        groep: 'ALG GGA',
+        spoor: 'BPLG-lijn',
+        thema: 'Landbouw',
+        start: 2022,
+        eind: 2024,
+        toelichting: 'Bruine balk onder GGA.',
+      },
+      {
+        id: 19,
+        naam: 'ALG / ALG 2.0',
+        groep: 'ALG GGA',
+        spoor: 'BPLG-lijn',
+        thema: 'Landbouw',
+        start: 2025,
+        eind: 2028.5,
+        toelichting: 'Vervolgblok in het verlengde in bruin.',
+      },
+      {
+        id: 20,
+        naam: 'Grond voor Graasdierhouderij',
+        groep: 'ALG GGA',
+        spoor: 'BR-lijn',
+        thema: 'Landbouw',
+        start: 2023,
+        eind: 2026,
+        toelichting: 'Korte periode links van Herwaarderingsregeling.',
+      },
+      {
+        id: 21,
+        naam: 'Herwaarderingsregeling',
+        groep: 'ALG GGA',
+        spoor: 'BR-lijn',
+        thema: 'Landbouw',
+        start: 2026,
+        eind: 2030,
+        toelichting: 'In het verlengde van BR / gug op de onderste lijn.',
+      },
+      {
+        id: 22,
+        naam: 'Versnellingsgebieden',
+        groep: 'Pnb / Algemeen',
+        spoor: 'PAS-lijn',
+        thema: 'Natuur',
+        start: 2025,
+        eind: 2030,
+        toelichting: 'Vijf Versnellingsgebieden',
+      },
+      {
+        id: 23,
+        naam: 'Stika',
+        groep: 'Pnb / Algemeen',
+        spoor: 'Stika-lijn',
+        thema: 'Natuur',
+        start: 2014,
+        eind: 2022,
+        toelichting: 'Stika regeling',
+      },
+      {
+        id: 24,
+        naam: 'Stila',
+        groep: 'Pnb / Algemeen',
+        spoor: 'Stika-lijn',
+        thema: 'Natuur',
+        start: 2022,
+        eind: 2025,
+        toelichting: 'Stila regeling',
+      },
+      {
+        id: 25,
+        naam: 'Stila 2.0',
+        groep: 'Pnb / Algemeen',
+        spoor: 'Stika-lijn',
+        thema: 'Natuur',
+        start: 2025,
+        eind: 2030,
+        toelichting: 'Stila 2.0 regeling',
+      },
+    ];
+
+    /**
+     * Formatteert een jaargetal voor de tooltip.
+     */
+    function formatYear(val) {
+      if (val === null || val === undefined || Number.isNaN(Number(val))) {
+        return 'Doorlopend (open einde)';
+      }
+      const num = Number(val);
+      return Number.isInteger(num) ? String(num) : num.toFixed(1).replace('.', ',');
+    }
+
+    /**
+     * Groepeert items op spoor zodat activiteiten op hetzelfde spoor in het verlengde staan.
+     */
+    function buildRowsAndBars(sourceItems) {
+      const rowMap = new Map();
+      const bars = [];
+
+      sourceItems.forEach((item, index) => {
+        const groupName = (item.groep || 'Overig').trim();
+        const trackName = (item.spoor || '').trim() || `Regel-${index + 1}`;
+        const rowKey = `${groupName}__${trackName}`;
+
+        if (!rowMap.has(rowKey)) {
+          rowMap.set(rowKey, {
+            rowKey,
+            group: groupName,
+            track: trackName,
+            label: trackName,
+            rowIndex: rowMap.size,
+          });
+        }
+
+        const rowInfo = rowMap.get(rowKey);
+        const startYear = Number.isFinite(Number(item.start)) ? Number(item.start) : TIJDLAS_START_JAAR;
+        const isOpenEnded = item.eind === null || item.eind === undefined || Number.isNaN(Number(item.eind));
+        const rawEndYear = isOpenEnded ? TIJDLAS_EINDE_JAAR : Number(item.eind);
+        const endYear = Math.min(rawEndYear, TIJDLAS_EINDE_JAAR);
+        const hasExplicitEndBefore2030 = !isOpenEnded && Number(item.eind) < TIJDLAS_EINDE_JAAR;
+        const palette = THEME_COLORS[item.thema] || THEME_COLORS['Natuur'];
+
+        bars.push({
+          ...item,
+          groep: groupName,
+          spoor: trackName,
+          rowIndex: rowInfo.rowIndex,
+          startYear,
+          endYear,
+          isOpenEnded,
+          hasExplicitEndBefore2030,
+          palette,
+          x: [startYear, Math.max(startYear + 0.15, endYear)],
+          y: rowInfo.rowIndex,
+        });
+      });
+
+      return {
+        rows: Array.from(rowMap.values()),
+        bars,
+      };
+    }
+
+    /**
+     * Custom Chart.js plugin voor groepskaders, traject vanaf "Nu", open einden en labels in balken.
+     */
+    const customTimelinePlugin = {
+      id: 'customTimelinePlugin',
+      beforeDatasetsDraw(chart, args, options) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea || !scales.y || !scales.x) return;
+
+        const rows = options.rows || [];
+        if (rows.length === 0) return;
+
+        const groupBlocks = [];
+        let current = null;
+
+        rows.forEach((r, idx) => {
+          if (!current || current.group !== r.group) {
+            if (current) groupBlocks.push(current);
+            current = { group: r.group, startIdx: idx, endIdx: idx };
+          } else {
+            current.endIdx = idx;
+          }
+        });
+        if (current) groupBlocks.push(current);
+
+        const stepHeight =
+          rows.length > 1
+            ? Math.abs(scales.y.getPixelForValue(1) - scales.y.getPixelForValue(0))
+            : 46;
+        const padY = Math.min(18, stepHeight * 0.36);
+
+        ctx.save();
+        groupBlocks.forEach((block, bIdx) => {
+          const topY = scales.y.getPixelForValue(block.startIdx) - padY;
+          const bottomY = scales.y.getPixelForValue(block.endIdx) + padY;
+          const leftX = chartArea.left + 4;
+          const rightX = chartArea.right - 4;
+          const boxHeight = Math.max(24, bottomY - topY);
+
+          ctx.fillStyle = bIdx % 2 === 0 ? 'rgba(15, 23, 42, 0.022)' : 'rgba(16, 185, 129, 0.025)';
+          ctx.fillRect(leftX, topY, rightX - leftX, boxHeight);
+
+          ctx.setLineDash([5, 4]);
+          ctx.lineWidth = 1.25;
+          ctx.strokeStyle = 'rgba(71, 85, 105, 0.55)';
+          ctx.strokeRect(leftX, topY, rightX - leftX, boxHeight);
+
+          ctx.setLineDash([]);
+          ctx.font = '600 11px Inter, sans-serif';
+          const labelText = block.group;
+          const textWidth = ctx.measureText(labelText).width;
+          const pillW = textWidth + 14;
+          const pillH = 18;
+          const pillX = rightX - pillW - 6;
+          const pillY = topY + 4;
+
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+          ctx.fillRect(pillX, pillY, pillW, pillH);
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(pillX, pillY, pillW, pillH);
+
+          ctx.fillStyle = '#334155';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(labelText, pillX + 7, pillY + pillH / 2 + 0.5);
+        });
+        ctx.restore();
+      },
+
+      afterDatasetsDraw(chart, args, options) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea || !scales.x || !scales.y) return;
+
+        const bars = options.bars || [];
+        const datasetMeta = chart.getDatasetMeta(0);
+        if (!datasetMeta || !datasetMeta.data) return;
+
+        const nuX = scales.x.getPixelForValue(NU_JAAR);
+
+        ctx.save();
+        datasetMeta.data.forEach((barEl, idx) => {
+          const item = bars[idx];
+          if (!item || !barEl) return;
+
+          const left = Math.min(barEl.base, barEl.x);
+          const right = Math.max(barEl.base, barEl.x);
+          const width = right - left;
+          const height = barEl.height || 24;
+          const top = barEl.y - height / 2;
+          const bottom = top + height;
+          const centerY = barEl.y;
+
+          if (!item.hasExplicitEndBefore2030) {
+            ctx.save();
+            ctx.fillStyle = item.palette.fill;
+            ctx.fillRect(right - 4, top, 8, height);
+            ctx.restore();
+          }
+
+          if (right > nuX && nuX < chartArea.right) {
+            const dashStartX = Math.max(left, nuX);
+            const dashEndX = right;
+            if (dashEndX > dashStartX) {
+              const segW = dashEndX - dashStartX;
+              const radius = item.hasExplicitEndBefore2030 ? Math.min(6, height / 2, segW / 2) : 0;
+
+              ctx.save();
+              ctx.fillStyle = '#f8fafc';
+              ctx.fillRect(dashStartX, top - 2, segW + 4, height + 4);
+
+              ctx.beginPath();
+              if (radius > 0) {
+                ctx.moveTo(dashStartX, top);
+                ctx.lineTo(dashEndX - radius, top);
+                ctx.quadraticCurveTo(dashEndX, top, dashEndX, top + radius);
+                ctx.lineTo(dashEndX, bottom - radius);
+                ctx.quadraticCurveTo(dashEndX, bottom, dashEndX - radius, bottom);
+                ctx.lineTo(dashStartX, bottom);
+                ctx.closePath();
+                ctx.fillStyle = item.palette.fill50;
+                ctx.fill();
+              } else {
+                ctx.fillStyle = item.palette.fill50;
+                ctx.fillRect(dashStartX, top, segW, height);
+              }
+
+              ctx.setLineDash([4, 3]);
+              ctx.lineWidth = 1.75;
+              ctx.strokeStyle = item.palette.fill;
+              ctx.beginPath();
+              if (radius > 0) {
+                ctx.moveTo(dashStartX, top);
+                ctx.lineTo(dashEndX - radius, top);
+                ctx.quadraticCurveTo(dashEndX, top, dashEndX, top + radius);
+                ctx.lineTo(dashEndX, bottom - radius);
+                ctx.quadraticCurveTo(dashEndX, bottom, dashEndX - radius, bottom);
+                ctx.lineTo(dashStartX, bottom);
+                ctx.moveTo(dashEndX, top + radius);
+                ctx.lineTo(dashEndX, bottom - radius);
+              } else {
+                ctx.moveTo(dashStartX, top);
+                ctx.lineTo(dashEndX, top);
+                ctx.moveTo(dashStartX, bottom);
+                ctx.lineTo(dashEndX, bottom);
+              }
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
+
+          const label = (item.naam || '').trim();
+          if (label && width >= 22) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(left + 4, top, Math.max(0, width - 8), height);
+            ctx.clip();
+
+            const startsAfterNu = left >= nuX;
+            ctx.fillStyle = startsAfterNu ? item.palette.border : item.palette.text;
+            ctx.font = width < 68 ? '600 10.5px Inter, sans-serif' : '600 11.5px Inter, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, left + 8, centerY + 0.5);
+            ctx.restore();
+          }
+        });
+
+        if (nuX >= chartArea.left && nuX <= chartArea.right) {
+          ctx.save();
+          ctx.setLineDash([6, 4]);
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#e11d48';
+          ctx.beginPath();
+          ctx.moveTo(nuX, chartArea.top - 6);
+          ctx.lineTo(nuX, chartArea.bottom);
+          ctx.stroke();
+
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#e11d48';
+          ctx.font = '700 11px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText('Nu', nuX, chartArea.top - 8);
+          ctx.restore();
+        }
+
+        ctx.restore();
+      },
+    };
+
+    /**
+     * Tekent de tijdlijn in het canvas.
+     */
+    function renderChart() {
+      const { rows, bars } = buildRowsAndBars(ITEMS);
+      const rowHeight = 42;
+      const desiredHeight = Math.max(240, rows.length * rowHeight + 90);
+
+      const wrapper = document.getElementById('chartWrapper');
+      const canvas = document.getElementById('timelineCanvas');
+      if (!wrapper || !canvas) return;
+
+      wrapper.style.height = `${desiredHeight}px`;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: rows.map((r) => r.label),
+          datasets: [
+            {
+              label: 'Periode',
+              data: bars.map((b) => ({
+                x: b.x,
+                y: b.y,
+                itemRef: b,
+              })),
+              backgroundColor: bars.map((b) => b.palette.fill),
+              borderColor: bars.map((b) => b.palette.border),
+              borderWidth: 1.5,
+              borderSkipped: bars.map((b) => (b.hasExplicitEndBefore2030 ? false : 'right')),
+              borderRadius: bars.map((b) => ({
+                topLeft: 6,
+                bottomLeft: 6,
+                topRight: b.hasExplicitEndBefore2030 ? 6 : 0,
+                bottomRight: b.hasExplicitEndBefore2030 ? 6 : 0,
+              })),
+              barPercentage: 0.72,
+              categoryPercentage: 0.88,
+            },
+          ],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          layout: {
+            padding: {
+              top: 18,
+              right: 16,
+              bottom: 6,
+              left: 10,
+            },
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              position: 'top',
+              min: TIJDLAS_START_JAAR,
+              max: TIJDLAS_EINDE_JAAR,
+              ticks: {
+                stepSize: 1,
+                color: '#334155',
+                font: {
+                  family: 'Inter, sans-serif',
+                  size: 11,
+                  weight: '600',
+                },
+                callback: (val) => (Number.isInteger(Number(val)) ? String(val) : ''),
+              },
+              grid: {
+                color: 'rgba(148, 163, 184, 0.25)',
+              },
+            },
+            y: {
+              type: 'linear',
+              reverse: true,
+              min: -0.5,
+              max: Math.max(0.5, rows.length - 0.5),
+              ticks: {
+                display: false,
+                stepSize: 1,
+                autoSkip: false,
+              },
+              grid: {
+                display: false,
+              },
+            },
+          },
+          plugins: {
+            legend: {
+              display: false,
+            },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              titleColor: '#f8fafc',
+              bodyColor: '#e2e8f0',
+              borderColor: '#334155',
+              borderWidth: 1,
+              padding: 10,
+              displayColors: true,
+              callbacks: {
+                title: (tooltipItems) => {
+                  const raw = tooltipItems[0]?.raw?.itemRef;
+                  return raw ? raw.naam : '';
+                },
+                label: (ctxItem) => {
+                  const raw = ctxItem.raw?.itemRef;
+                  if (!raw) return '';
+                  const periode = `${formatYear(raw.start)} – ${raw.isOpenEnded ? 'Open / Doorlopend' : formatYear(raw.eind)}`;
+                  return `Periode: ${periode} | Thema: ${raw.thema} | Groep: ${raw.groep}`;
+                },
+                afterLabel: (ctxItem) => {
+                  const raw = ctxItem.raw?.itemRef;
+                  return raw?.toelichting ? `Toelichting: ${raw.toelichting}` : '';
+                },
+              },
+            },
+            customTimelinePlugin: {
+              rows,
+              bars,
+            },
+          },
+        },
+        plugins: [customTimelinePlugin],
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        renderChart();
+      } catch (err) {
+        console.error('Fout bij het tekenen van de tijdlijn:', err);
+      }
+    });
+  </script>
+</body>
+</html>
