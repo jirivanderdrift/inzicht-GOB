@@ -3,24 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tijdlijn — Natuur, Water en Landbouw</title>
+  <title>Tijdlijn — Natuur, Water, Landbouw en Bos</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       margin: 0;
       padding: 24px;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #ffffff;
       color: #1e293b;
     }
     .container {
-      max-width: 1280px;
+      max-width: 1360px;
       margin: 0 auto;
     }
     .legenda {
       display: flex;
       flex-wrap: wrap;
-      gap: 16px;
+      align-items: center;
+      gap: 18px;
       margin-bottom: 16px;
       font-size: 14px;
     }
@@ -34,11 +35,26 @@
       height: 14px;
       border-radius: 3px;
       display: inline-block;
+      flex-shrink: 0;
+    }
+    .nu-legenda {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      font-size: 13px;
+      color: #475569;
+    }
+    .nu-lijn-icoon {
+      width: 0;
+      height: 16px;
+      border-left: 2px dashed #dc2626;
+      display: inline-block;
     }
     .chart-wrap {
       position: relative;
       width: 100%;
-      height: 680px;
+      height: 780px;
     }
   </style>
 </head>
@@ -51,40 +67,62 @@
   </div>
 
   <script>
+    const START_JAAR = 2014;
+    const EINDE_JAAR = 2030;
+    // Decimale weergave van "Nu" (bijv. eind november 2026 ≈ 2026.9)
+    const NU_JAAR = 2026.9;
+
     const THEMA_KLEUREN = {
       "Natuur": "#15803d",
       "Water": "#0284c7",
       "Landbouw": "#92400e",
-      "buiten NNB": "#7c3aed"
+      "Bos": "#7c3aed"
+    };
+
+    const GROEP_KLEUREN = {
+      "Pnb / Algemeen": "#475569",
+      "GOB": "#0f766e",
+      "Programma Natuur": "#1d4ed8",
+      "ALG GGA": "#b45309"
     };
 
     const ITEMS = [
-      { id: 1, naam: "PAS", groep: "Pnb / Algemeen", spoor: "PAS-lijn", thema: "Natuur", start: 2015, eind: 2026, toelichting: "Programmatische Aanpak Stikstof (PAS)" },
-      { id: 2, naam: "Verkoop natuurgrond", groep: "GOB", spoor: "Grond-1", thema: "Natuur", start: 2016, eind: 2030, toelichting: "Verkoop Categorie 1, 2 en 3" },
-      { id: 3, naam: "Aankoop ruilgronden en gebouwen", groep: "GOB", spoor: "Grond-2", thema: "Natuur", start: 2019, eind: 2026, toelichting: "Aankoop gronden/gebieden" },
-      { id: 4, naam: "Herplantplicht", groep: "GOB", spoor: "Grond-2", thema: "buiten NNB", start: 2027, eind: 2028, toelichting: "Herplantplicht" },
-      { id: 5, naam: "EVZ", groep: "GOB", spoor: "GOB-1", thema: "Water", start: 2014, eind: 2030, toelichting: "Ecologische verbindingszone" },
-      { id: 6, naam: "Rnnb", groep: "GOB", spoor: "GOB-2", thema: "Natuur", start: 2014, eind: 2030, toelichting: "Realisatie Natuurnetwerk" },
-      { id: 7, naam: "Afloop pacht", groep: "GOB", spoor: "GOB-6", thema: "Natuur", start: 2023, eind: 2028, toelichting: "Afloop pacht" },
-      { id: 8, naam: "Pnnb", groep: "GOB", spoor: "GOB-3", thema: "Natuur", start: 2014, eind: 2022, toelichting: "Plan Natuurnetwerk" },
-      { id: 9, naam: "Onnb", groep: "GOB", spoor: "GOB-4", thema: "Landbouw", start: 2014, eind: 2022, toelichting: "Ontwikkelopgave / landbouw binnen GOB" },
-      { id: 10, naam: "Herbegrenzen (GOB)", groep: "GOB", spoor: "GOB-5", thema: "Landbouw", start: 2014, eind: 2020, toelichting: "Herbegrenzen" },
-      { id: 11, naam: "Nieuwe realistische strategie natuur", groep: "Programma Natuur", spoor: "GOB-7", thema: "Natuur", start: 2027, eind: 2030, toelichting: "Nieuwe realistische strategie natuur" },
-      { id: 12, naam: "MOKS", groep: "Programma Natuur", spoor: "MOKS-lijn", thema: "Water", start: 2022, eind: 2027, toelichting: "MOKS" },
-      { id: 13, naam: "MOHS + Realisatie ovk", groep: "Programma Natuur", spoor: "MOKS-lijn", thema: "Water", start: 2027, eind: 2030, toelichting: "MOHS + Realisatie overeenkomst" },
-      { id: 14, naam: "LPN1", groep: "Programma Natuur", spoor: "LPN-lijn", thema: "Natuur", start: 2021, eind: 2026, toelichting: "Eerste LPN-periode" },
-      { id: 15, naam: "LPN2", groep: "Programma Natuur", spoor: "LPN-lijn", thema: "Natuur", start: 2024, eind: 2030, toelichting: "Tweede LPN-periode" },
-      { id: 16, naam: "GGA", groep: "ALG GGA", spoor: "GGA-lijn", thema: "Natuur", start: 2021, eind: 2025, toelichting: "GGA" },
-      { id: 17, naam: "BPLG", groep: "ALG GGA", spoor: "BPLG-lijn", thema: "Landbouw", start: 2022, eind: 2024, toelichting: "BPLG" },
-      { id: 18, naam: "ALG / ALG 2.0", groep: "ALG GGA", spoor: "BPLG-lijn", thema: "Landbouw", start: 2025, eind: 2028.5, toelichting: "ALG / ALG 2.0" },
-      { id: 19, naam: "Grond voor Graasdierhouderij", groep: "ALG GGA", spoor: "BR-lijn", thema: "Landbouw", start: 2023, eind: 2026, toelichting: "Grond voor Graasdierhouderij" },
-      { id: 20, naam: "Herwaarderingsregeling", groep: "ALG GGA", spoor: "BR-lijn", thema: "Landbouw", start: 2026, eind: 2030, toelichting: "Herwaarderingsregeling" },
-      { id: 21, naam: "Versnellingsgebieden", groep: "Pnb / Algemeen", spoor: "PAS-lijn", thema: "Natuur", start: 2025, eind: 2030, toelichting: "Vijf Versnellingsgebieden" },
-      { id: 22, naam: "Stika", groep: "Pnb / Algemeen", spoor: "Stika-lijn", thema: "Natuur", start: 2014, eind: 2022, toelichting: "Stika regeling" },
-      { id: 23, naam: "Stila", groep: "Pnb / Algemeen", spoor: "Stika-lijn", thema: "Natuur", start: 2022, eind: 2025, toelichting: "Stila regeling" },
-      { id: 24, naam: "Stila 2.0", groep: "Pnb / Algemeen", spoor: "Stika-lijn", thema: "Natuur", start: 2025, eind: 2030, toelichting: "Stila 2.0 regeling" }
+      { id: 1, naam: "PAS", groep: "Pnb / Algemeen", thema: "Natuur", start: 2015, eind: 2026, toelichting: "Programmatische Aanpak Stikstof (PAS)" },
+      { id: 2, naam: "Verkoop natuurgrond", groep: "GOB", thema: "Natuur", start: 2016, eind: 2030, toelichting: "Verkoop Categorie 1, 2 en 3" },
+      { id: 3, naam: "Aankoop ruilgronden en gebouwen", groep: "GOB", thema: "Natuur", start: 2019, eind: 2026, toelichting: "Aankoop gronden/gebieden" },
+      { id: 4, naam: "Herplantplicht", groep: "GOB", thema: "Bos", start: 2027, eind: 2028, toelichting: "Herplantplicht" },
+      { id: 5, naam: "EVZ", groep: "GOB", thema: "Water", start: 2014, eind: 2030, toelichting: "Ecologische verbindingszone" },
+      { id: 6, naam: "Rnnb", groep: "GOB", thema: "Natuur", start: 2014, eind: 2030, toelichting: "Realisatie Natuurnetwerk" },
+      { id: 7, naam: "Afloop pacht", groep: "GOB", thema: "Natuur", start: 2023, eind: 2028, toelichting: "Afloop pacht" },
+      { id: 8, naam: "Pnnb", groep: "GOB", thema: "Natuur", start: 2014, eind: 2022, toelichting: "Plan Natuurnetwerk" },
+      { id: 9, naam: "Onnb", groep: "GOB", thema: "Landbouw", start: 2014, eind: 2022, toelichting: "Ontwikkelopgave / landbouw binnen GOB" },
+      { id: 10, naam: "Herbegrenzen (GOB)", groep: "GOB", thema: "Landbouw", start: 2014, eind: 2020, toelichting: "Herbegrenzen" },
+      { id: 11, naam: "Nieuwe realistische strategie natuur", groep: "Programma Natuur", thema: "Natuur", start: 2027, eind: 2030, toelichting: "Nieuwe realistische strategie natuur" },
+      { id: 12, naam: "MOKS", groep: "Programma Natuur", thema: "Water", start: 2022, eind: 2027, toelichting: "MOKS" },
+      { id: 13, naam: "MOHS + Realisatie ovk", groep: "Programma Natuur", thema: "Water", start: 2027, eind: 2030, toelichting: "MOHS + Realisatie overeenkomst" },
+      { id: 14, naam: "LPN1", groep: "Programma Natuur", thema: "Natuur", start: 2021, eind: 2026, toelichting: "Eerste LPN-periode" },
+      { id: 15, naam: "LPN2", groep: "Programma Natuur", thema: "Natuur", start: 2024, eind: 2030, toelichting: "Tweede LPN-periode" },
+      { id: 16, naam: "GGA", groep: "ALG GGA", thema: "Natuur", start: 2021, eind: 2025, toelichting: "GGA" },
+      { id: 17, naam: "BPLG", groep: "ALG GGA", thema: "Landbouw", start: 2022, eind: 2024, toelichting: "BPLG" },
+      { id: 18, naam: "ALG / ALG 2.0", groep: "ALG GGA", thema: "Landbouw", start: 2025, eind: 2028.5, toelichting: "ALG / ALG 2.0" },
+      { id: 19, naam: "Grond voor Graasdierhouderij", groep: "ALG GGA", thema: "Landbouw", start: 2023, eind: 2026, toelichting: "Grond voor Graasdierhouderij" },
+      { id: 20, naam: "Herwaarderingsregeling", groep: "ALG GGA", thema: "Landbouw", start: 2026, eind: 2030, toelichting: "Herwaarderingsregeling" },
+      { id: 21, naam: "Versnellingsgebieden", groep: "Pnb / Algemeen", thema: "Natuur", start: 2025, eind: 2030, toelichting: "Vijf Versnellingsgebieden" },
+      { id: 22, naam: "Stika", groep: "Pnb / Algemeen", thema: "Natuur", start: 2014, eind: 2022, toelichting: "Stika regeling" },
+      { id: 23, naam: "Stila", groep: "Pnb / Algemeen", thema: "Natuur", start: 2022, eind: 2025, toelichting: "Stila regeling" },
+      { id: 24, naam: "Stila 2.0", groep: "Pnb / Algemeen", thema: "Natuur", start: 2025, eind: 2030, toelichting: "Stila 2.0 regeling" }
     ];
 
+    function hexToRgba(hex, alpha) {
+      const clean = hex.replace("#", "");
+      const num = parseInt(clean, 16);
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // Legenda opbouwen
     const legendaEl = document.getElementById("legenda");
     Object.entries(THEMA_KLEUREN).forEach(([thema, kleur]) => {
       const item = document.createElement("span");
@@ -93,6 +131,240 @@
       legendaEl.appendChild(item);
     });
 
+    const nuItem = document.createElement("span");
+    nuItem.className = "nu-legenda";
+    nuItem.innerHTML = `<span class="nu-lijn-icoon"></span><span>Nu (stippellijn = prognose/toekomst)</span>`;
+    legendaEl.appendChild(nuItem);
+
+    // Hulpfunctie voor afgeronde rechthoek
+    function drawRoundRect(ctx, x, y, w, h, radii) {
+      const r = typeof radii === "number"
+        ? { tl: radii, tr: radii, br: radii, bl: radii }
+        : { tl: 0, tr: 0, br: 0, bl: 0, ...radii };
+
+      ctx.beginPath();
+      ctx.moveTo(x + r.tl, y);
+      ctx.lineTo(x + w - r.tr, y);
+      if (r.tr > 0) ctx.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+      else ctx.lineTo(x + w, y);
+
+      ctx.lineTo(x + w, y + h - r.br);
+      if (r.br > 0) ctx.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+      else ctx.lineTo(x + w, y + h);
+
+      ctx.lineTo(x + r.bl, y + h);
+      if (r.bl > 0) ctx.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+      else ctx.lineTo(x, y + h);
+
+      ctx.lineTo(x, y + r.tl);
+      if (r.tl > 0) ctx.quadraticCurveTo(x, y, x + r.tl, y);
+      else ctx.lineTo(x, y);
+      ctx.closePath();
+    }
+
+    // Plugin voor groepskaders, aangepaste balken (voor/na "Nu" + stippellijn), tekst in balken en "Nu"-lijn
+    const tijdlijnPlugin = {
+      id: "tijdlijnPlugin",
+      beforeDatasetsDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea) return;
+        const xScale = scales.x;
+        const yScale = scales.y;
+
+        // 1. Groepskaders tekenen op basis van opeenvolgende items met dezelfde groep
+        const groepenBlokken = [];
+        ITEMS.forEach((item, idx) => {
+          const prev = groepenBlokken[groepenBlokken.length - 1];
+          if (prev && prev.groep === item.groep && prev.endIndex === idx - 1) {
+            prev.endIndex = idx;
+          } else {
+            groepenBlokken.push({
+              groep: item.groep,
+              startIndex: idx,
+              endIndex: idx
+            });
+          }
+        });
+
+        ctx.save();
+        groepenBlokken.forEach((blok) => {
+          const yTop = yScale.getPixelForValue(blok.startIndex) - 15;
+          const yBottom = yScale.getPixelForValue(blok.endIndex) + 15;
+          const xLeft = chartArea.left + 4;
+          const xRight = chartArea.right - 4;
+          const kaderKleur = GROEP_KLEUREN[blok.groep] || "#64748b";
+
+          ctx.fillStyle = hexToRgba(kaderKleur, 0.035);
+          ctx.strokeStyle = hexToRgba(kaderKleur, 0.65);
+          ctx.lineWidth = 1.25;
+          ctx.setLineDash([5, 4]);
+
+          drawRoundRect(ctx, xLeft, yTop, xRight - xLeft, yBottom - yTop, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          // Groepslabel rechtsboven in het kader
+          ctx.setLineDash([]);
+          ctx.font = "600 11px system-ui, -apple-system, sans-serif";
+          ctx.fillStyle = kaderKleur;
+          ctx.textAlign = "right";
+          ctx.textBaseline = "top";
+          ctx.fillText(blok.groep, xRight - 8, yTop + 4);
+        });
+        ctx.restore();
+      },
+
+      afterDatasetsDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea) return;
+        const xScale = scales.x;
+        const yScale = scales.y;
+        const meta = chart.getDatasetMeta(0);
+
+        // Eerst standaardbalken verbergen omdat we ze zelf met "Nu"-splitsing en stippellijn tekenen
+        ctx.save();
+        ITEMS.forEach((item, idx) => {
+          const barEl = meta.data[idx];
+          if (!barEl) return;
+
+          const yCenter = barEl.y;
+          const barHeight = Math.min(barEl.height || 20, 22);
+          const yTop = yCenter - barHeight / 2;
+
+          const startVal = Math.max(START_JAAR, Number(item.start));
+          const hasExplicitEnd = item.eind !== null && item.eind !== undefined && item.eind !== "" && !Number.isNaN(Number(item.eind));
+          const rawEndVal = hasExplicitEnd ? Number(item.eind) : EINDE_JAAR;
+          const eindVal = Math.min(EINDE_JAAR, rawEndVal);
+
+          if (eindVal <= startVal) return;
+
+          const basisKleur = THEMA_KLEUREN[item.thema] || "#64748b";
+          const xStart = xScale.getPixelForValue(startVal);
+          const xEnd = xScale.getPixelForValue(eindVal);
+          const xNu = xScale.getPixelForValue(Math.min(Math.max(NU_JAAR, START_JAAR), EINDE_JAAR));
+
+          // Deel 1: vóór "Nu" (doorgetrokken)
+          if (startVal < NU_JAAR) {
+            const preEndVal = Math.min(eindVal, NU_JAAR);
+            const xPreEnd = xScale.getPixelForValue(preEndVal);
+            const wPre = Math.max(2, xPreEnd - xStart);
+            const eindigtVoor2030 = hasExplicitEnd && rawEndVal < EINDE_JAAR && eindVal <= preEndVal;
+
+            ctx.fillStyle = basisKleur;
+            ctx.strokeStyle = basisKleur;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([]);
+
+            drawRoundRect(ctx, xStart, yTop, wPre, barHeight, {
+              tl: 4,
+              bl: 4,
+              tr: eindigtVoor2030 ? 4 : 0,
+              br: eindigtVoor2030 ? 4 : 0
+            });
+            ctx.fill();
+            if (eindigtVoor2030) {
+              ctx.stroke();
+            }
+          }
+
+          // Deel 2: vanaf "Nu" (stippellijn + 50% themavulling)
+          if (eindVal > NU_JAAR) {
+            const postStartVal = Math.max(startVal, NU_JAAR);
+            const xPostStart = xScale.getPixelForValue(postStartVal);
+            const wPost = Math.max(2, xEnd - xPostStart);
+
+            // Eindstreep en ronde rechterhoek alleen wanneer einddatum < 2030 (en expliciet opgegeven)
+            const heeftEindStreep = hasExplicitEnd && rawEndVal < EINDE_JAAR;
+            const radiusRechts = heeftEindStreep ? 4 : 0;
+            const radiusLinks = startVal >= NU_JAAR ? 4 : 0;
+
+            // 50% vulling
+            ctx.fillStyle = hexToRgba(basisKleur, 0.5);
+            drawRoundRect(ctx, xPostStart, yTop, wPost, barHeight, {
+              tl: radiusLinks,
+              bl: radiusLinks,
+              tr: radiusRechts,
+              br: radiusRechts
+            });
+            ctx.fill();
+
+            // Stippellijn rondom het traject vanaf Nu
+            ctx.strokeStyle = basisKleur;
+            ctx.lineWidth = 1.6;
+            ctx.setLineDash([4, 3]);
+
+            ctx.beginPath();
+            if (heeftEindStreep) {
+              drawRoundRect(ctx, xPostStart, yTop, wPost, barHeight, {
+                tl: radiusLinks,
+                bl: radiusLinks,
+                tr: radiusRechts,
+                br: radiusRechts
+              });
+              ctx.stroke();
+            } else {
+              // Boven- en onderlijn zonder rechter eindstreep
+              ctx.moveTo(xPostStart + radiusLinks, yTop);
+              ctx.lineTo(xPostStart + wPost, yTop);
+              ctx.moveTo(xPostStart + radiusLinks, yTop + barHeight);
+              ctx.lineTo(xPostStart + wPost, yTop + barHeight);
+              if (radiusLinks > 0) {
+                ctx.moveTo(xPostStart + wPost, yTop); // placeholder
+              }
+              ctx.stroke();
+
+              // Linker rand tekenen als het item pas na "Nu" start
+              if (startVal >= NU_JAAR) {
+                ctx.beginPath();
+                ctx.moveTo(xPostStart, yTop + radiusLinks);
+                ctx.lineTo(xPostStart, yTop + barHeight - radiusLinks);
+                ctx.stroke();
+              }
+            }
+            ctx.setLineDash([]);
+          }
+
+          // Tekst in het balkje plaatsen
+          const totaleBreedte = Math.max(0, xEnd - xStart);
+          ctx.font = "600 11px system-ui, -apple-system, sans-serif";
+          ctx.textBaseline = "middle";
+
+          const tekstBreedte = ctx.measureText(item.naam).width;
+          if (tekstBreedte + 12 <= totaleBreedte) {
+            ctx.fillStyle = "#ffffff";
+            ctx.textAlign = "left";
+            ctx.fillText(item.naam, xStart + 7, yCenter + 0.5);
+          } else {
+            // Fallback net rechts naast een smal balkje zodat de naam leesbaar blijft
+            ctx.fillStyle = basisKleur;
+            ctx.textAlign = "left";
+            ctx.fillText(item.naam, xEnd + 6, yCenter + 0.5);
+          }
+        });
+
+        // Verticale "Nu"-lijn over de grafiek tekenen
+        if (NU_JAAR >= START_JAAR && NU_JAAR <= EINDE_JAAR) {
+          const xNu = xScale.getPixelForValue(NU_JAAR);
+          ctx.strokeStyle = "#dc2626";
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([5, 4]);
+          ctx.beginPath();
+          ctx.moveTo(xNu, chartArea.top - 10);
+          ctx.lineTo(xNu, chartArea.bottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = "#dc2626";
+          ctx.font = "700 11px system-ui, -apple-system, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "bottom";
+          ctx.fillText("Nu", xNu, chartArea.top - 12);
+        }
+
+        ctx.restore();
+      }
+    };
+
     const ctx = document.getElementById("tijdlijnCanvas").getContext("2d");
     new Chart(ctx, {
       type: "bar",
@@ -100,30 +372,63 @@
         labels: ITEMS.map(i => i.naam),
         datasets: [{
           label: "Periode",
-          data: ITEMS.map(i => [i.start, i.eind]),
-          backgroundColor: ITEMS.map(i => THEMA_KLEUREN[i.thema] || "#64748b"),
-          borderRadius: 4,
-          borderSkipped: false
+          data: ITEMS.map(i => [i.start, i.eind ?? EINDE_JAAR]),
+          // Transparant omdat tijdlijnPlugin de gestylede balken tekent
+          backgroundColor: "rgba(0,0,0,0)",
+          borderWidth: 0
         }]
       },
+      plugins: [tijdlijnPlugin],
       options: {
         indexAxis: "y",
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+          padding: {
+            top: 22,
+            right: 16
+          }
+        },
         scales: {
           x: {
-            min: 2014,
-            max: 2030,
-            ticks: { stepSize: 2 }
+            min: START_JAAR,
+            max: EINDE_JAAR,
+            ticks: {
+              stepSize: 1,
+              callback: (val) => Number.isInteger(val) ? String(val) : ""
+            },
+            grid: {
+              color: "#e2e8f0"
+            }
+          },
+          y: {
+            // Namen staan in de balkjes in plaats van links langs de y-as
+            ticks: {
+              display: false
+            },
+            grid: {
+              display: false
+            }
           }
         },
         plugins: {
-          legend: { display: false },
+          legend: {
+            display: false
+          },
           tooltip: {
             callbacks: {
+              title: (items) => {
+                const item = ITEMS[items[0].dataIndex];
+                return `${item.naam} (${item.groep})`;
+              },
               label: (ctx) => {
                 const item = ITEMS[ctx.dataIndex];
-                return `${item.start} – ${item.eind} (${item.thema}) — ${item.toelichting}`;
+                const eindLabel = item.eind === EINDE_JAAR ? "2030+" : item.eind;
+                return `${item.start} – ${eindLabel} | Thema: ${item.thema}`;
+              },
+              afterLabel: (ctx) => {
+                const item = ITEMS[ctx.dataIndex];
+                return item.toelichting ? item.toelichting : "";
               }
             }
           }
