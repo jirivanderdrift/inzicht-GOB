@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tijdlijn — Natuur, Water en Landbouw</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #ffffff;
+      color: #1e293b;
+    }
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    .legenda {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    .legenda-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 680px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="legenda" class="legenda"></div>
+    <div class="chart-wrap">
+      <canvas id="tijdlijnCanvas"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const THEMA_KLEUREN = {
+      "Natuur": "#15803d",
+      "Water": "#0284c7",
+      "Landbouw": "#92400e",
+      "buiten NNB": "#7c3aed"
+    };
+
+    const ITEMS = [
+      { id: 1, naam: "PAS", groep: "Pnb / Algemeen", spoor: "PAS-lijn", thema: "Natuur", start: 2015, eind: 2026, toelichting: "Programmatische Aanpak Stikstof (PAS)" },
+      { id: 2, naam: "Verkoop natuurgrond", groep: "GOB", spoor: "Grond-1", thema: "Natuur", start: 2016, eind: 2030, toelichting: "Verkoop Categorie 1, 2 en 3" },
+      { id: 3, naam: "Aankoop ruilgronden en gebouwen", groep: "GOB", spoor: "Grond-2", thema: "Natuur", start: 2019, eind: 2026, toelichting: "Aankoop gronden/gebieden" },
+      { id: 4, naam: "Herplantplicht", groep: "GOB", spoor: "Grond-2", thema: "buiten NNB", start: 2027, eind: 2028, toelichting: "Herplantplicht" },
+      { id: 5, naam: "EVZ", groep: "GOB", spoor: "GOB-1", thema: "Water", start: 2014, eind: 2030, toelichting: "Ecologische verbindingszone" },
+      { id: 6, naam: "Rnnb", groep: "GOB", spoor: "GOB-2", thema: "Natuur", start: 2014, eind: 2030, toelichting: "Realisatie Natuurnetwerk" },
+      { id: 7, naam: "Afloop pacht", groep: "GOB", spoor: "GOB-6", thema: "Natuur", start: 2023, eind: 2028, toelichting: "Afloop pacht" },
+      { id: 8, naam: "Pnnb", groep: "GOB", spoor: "GOB-3", thema: "Natuur", start: 2014, eind: 2022, toelichting: "Plan Natuurnetwerk" },
+      { id: 9, naam: "Onnb", groep: "GOB", spoor: "GOB-4", thema: "Landbouw", start: 2014, eind: 2022, toelichting: "Ontwikkelopgave / landbouw binnen GOB" },
+      { id: 10, naam: "Herbegrenzen (GOB)", groep: "GOB", spoor: "GOB-5", thema: "Landbouw", start: 2014, eind: 2020, toelichting: "Herbegrenzen" },
+      { id: 11, naam: "Nieuwe realistische strategie natuur", groep: "Programma Natuur", spoor: "GOB-7", thema: "Natuur", start: 2027, eind: 2030, toelichting: "Nieuwe realistische strategie natuur" },
+      { id: 12, naam: "MOKS", groep: "Programma Natuur", spoor: "MOKS-lijn", thema: "Water", start: 2022, eind: 2027, toelichting: "MOKS" },
+      { id: 13, naam: "MOHS + Realisatie ovk", groep: "Programma Natuur", spoor: "MOKS-lijn", thema: "Water", start: 2027, eind: 2030, toelichting: "MOHS + Realisatie overeenkomst" },
+      { id: 14, naam: "LPN1", groep: "Programma Natuur", spoor: "LPN-lijn", thema: "Natuur", start: 2021, eind: 2026, toelichting: "Eerste LPN-periode" },
+      { id: 15, naam: "LPN2", groep: "Programma Natuur", spoor: "LPN-lijn", thema: "Natuur", start: 2024, eind: 2030, toelichting: "Tweede LPN-periode" },
+      { id: 16, naam: "GGA", groep: "ALG GGA", spoor: "GGA-lijn", thema: "Natuur", start: 2021, eind: 2025, toelichting: "GGA" },
+      { id: 17, naam: "BPLG", groep: "ALG GGA", spoor: "BPLG-lijn", thema: "Landbouw", start: 2022, eind: 2024, toelichting: "BPLG" },
+      { id: 18, naam: "ALG / ALG 2.0", groep: "ALG GGA", spoor: "BPLG-lijn", thema: "Landbouw", start: 2025, eind: 2028.5, toelichting: "ALG / ALG 2.0" },
+      { id: 19, naam: "Grond voor Graasdierhouderij", groep: "ALG GGA", spoor: "BR-lijn", thema: "Landbouw", start: 2023, eind: 2026, toelichting: "Grond voor Graasdierhouderij" },
+      { id: 20, naam: "Herwaarderingsregeling", groep: "ALG GGA", spoor: "BR-lijn", thema: "Landbouw", start: 2026, eind: 2030, toelichting: "Herwaarderingsregeling" },
+      { id: 21, naam: "Versnellingsgebieden", groep: "Pnb / Algemeen", spoor: "PAS-lijn", thema: "Natuur", start: 2025, eind: 2030, toelichting: "Vijf Versnellingsgebieden" },
+      { id: 22, naam: "Stika", groep: "Pnb / Algemeen", spoor: "Stika-lijn", thema: "Natuur", start: 2014, eind: 2022, toelichting: "Stika regeling" },
+      { id: 23, naam: "Stila", groep: "Pnb / Algemeen", spoor: "Stika-lijn", thema: "Natuur", start: 2022, eind: 2025, toelichting: "Stila regeling" },
+      { id: 24, naam: "Stila 2.0", groep: "Pnb / Algemeen", spoor: "Stika-lijn", thema: "Natuur", start: 2025, eind: 2030, toelichting: "Stila 2.0 regeling" }
+    ];
+
+    const legendaEl = document.getElementById("legenda");
+    Object.entries(THEMA_KLEUREN).forEach(([thema, kleur]) => {
+      const item = document.createElement("span");
+      item.className = "legenda-item";
+      item.innerHTML = `<span class="swatch" style="background:${kleur}"></span><span>${thema}</span>`;
+      legendaEl.appendChild(item);
+    });
+
+    const ctx = document.getElementById("tijdlijnCanvas").getContext("2d");
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: ITEMS.map(i => i.naam),
+        datasets: [{
+          label: "Periode",
+          data: ITEMS.map(i => [i.start, i.eind]),
+          backgroundColor: ITEMS.map(i => THEMA_KLEUREN[i.thema] || "#64748b"),
+          borderRadius: 4,
+          borderSkipped: false
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            min: 2014,
+            max: 2030,
+            ticks: { stepSize: 2 }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const item = ITEMS[ctx.dataIndex];
+                return `${item.start} – ${item.eind} (${item.thema}) — ${item.toelichting}`;
+              }
+            }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
